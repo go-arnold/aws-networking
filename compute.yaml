@@ -116,7 +116,13 @@ Resources:
           yum install -y httpd
           systemctl start httpd
           systemctl enable httpd
-          AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+
+          # Fetch IMDSv2 Session Token (valid for 21600 seconds / 6 hours)
+          TOKEN=$(curl -s -S -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+
+          # Fetch Availability Zone using the IMDSv2 Token
+          AZ=$(curl -s -S -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)
+
           cat <<EOF > /var/www/html/index.html
           <!DOCTYPE html>
           <html>
@@ -162,7 +168,13 @@ Resources:
           yum install -y httpd
           systemctl start httpd
           systemctl enable httpd
-          AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+
+          # Fetch IMDSv2 Session Token (valid for 21600 seconds / 6 hours)
+          TOKEN=$(curl -s -S -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+
+          # Fetch Availability Zone using the IMDSv2 Token
+          AZ=$(curl -s -S -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)
+
           cat <<EOF > /var/www/html/index.html
           <!DOCTYPE html>
           <html>
