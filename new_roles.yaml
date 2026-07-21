@@ -154,6 +154,7 @@ Resources:
                   - ec2:ModifySubnetAttribute
                   - ec2:CreateNatGateway
                   - ec2:DescribeNatGateways
+                  - ec2:DeleteNatGateway
                 Resource: "*"
 
               - Sid: CloudFormationStackReadForNestedOperations
