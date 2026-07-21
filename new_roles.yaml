@@ -80,6 +80,12 @@ Resources:
                 Action:
                   - secretsmanager:GetRandomPassword
                 Resource: "*"
+              - Sid: ReadPublicSsmParameters
+                Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}::parameter/aws/service/*"
               - Sid: ManageIamGroupsAndPolicies
                 Effect: Allow
                 Action:
