@@ -1,0 +1,247 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Highly Available EC2 Instances with SSM Management and Web Server User Data'
+
+Parameters:
+  NetworkStackName:
+    Type: String
+    Default: 'network-stack'
+    Description: 'Name of the parent networking stack exporting VPC/Subnet IDs'
+
+  YourFullName:
+    Type: String
+    Default: 'Arnold Cikuru Mataba'
+    Description: 'Full Name to display on the public web server page'
+
+  LabName:
+    Type: String
+    Default: 'Securely Deploying Resources in a VPC Using CloudFormation'
+    Description: 'Work title to display on the public web server page'
+
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
+    Description: 'Dynamic SSM lookup for the latest Amazon Linux 2023 AMI'
+
+  InstanceType:
+    Type: String
+    Default: 't3.micro'
+    Description: 'EC2 instance type'
+
+Resources:
+  # =========================================================================
+  # 1. IAM ROLE & INSTANCE PROFILE FOR SYSTEMS MANAGER (SSM)
+  # =========================================================================
+  SSMInstanceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-SSMInstanceRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
+      Tags:
+        - Key: Name
+          Value: 'SSM-Instance-Role'
+
+  SSMInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref SSMInstanceRole
+
+  # =========================================================================
+  # 2. SECURITY GROUPS
+  # =========================================================================
+  PublicWebServerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Allow inbound HTTP and ICMP to public instances'
+      VpcId:
+        Fn::ImportValue: !Sub '${NetworkStackName}-VpcId'
+      SecurityGroupIngress:
+        # Inbound HTTP from anywhere
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        # Inbound ICMP (Ping) for connectivity testing
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+      Tags:
+        - Key: Name
+          Value: 'Public-Web-SG'
+
+  PrivateAppSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Allow ICMP ping from VPC and outbound internet access'
+      VpcId:
+        Fn::ImportValue: !Sub '${NetworkStackName}-VpcId'
+      SecurityGroupIngress:
+        # Allow ICMP (Ping) from within the VPC (10.0.0.0/16) for reachability testing
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '10.0.0.0/16'
+      Tags:
+        - Key: Name
+          Value: 'Private-App-SG'
+
+  # =========================================================================
+  # 3. PUBLIC EC2 INSTANCES (WEB TIER WITH APACHE HTTPD USER DATA)
+  # =========================================================================
+  PublicInstanceA:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAmiId
+      SubnetId:
+        Fn::ImportValue: !Sub '${NetworkStackName}-PublicSubnetA'
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      SecurityGroupIds:
+        - !Ref PublicWebServerSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+          cat <<EOF > /var/www/html/index.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>${LabName}</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f6f8; color: #333; }
+                  .container { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                  h1 { color: #0066cc; }
+                  .meta { background: #eef5fc; padding: 10px; border-left: 4px solid #0066cc; margin-top: 15px; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>${LabName}</h1>
+                  <p><strong>Student Name:</strong> ${YourFullName}</p>
+                  <div class="meta">
+                      <p><strong>Server Location:</strong> ${AWS::Region} (Zone: $AZ)</p>
+                      <p><strong>Status:</strong> Apache Web Server Operational</p>
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
+      Tags:
+        - Key: Name
+          Value: 'Public-Web-Server-AZ1'
+
+  PublicInstanceB:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAmiId
+      SubnetId:
+        Fn::ImportValue: !Sub '${NetworkStackName}-PublicSubnetB'
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      SecurityGroupIds:
+        - !Ref PublicWebServerSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+          cat <<EOF > /var/www/html/index.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>${LabName}</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f6f8; color: #333; }
+                  .container { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                  h1 { color: #0066cc; }
+                  .meta { background: #eef5fc; padding: 10px; border-left: 4px solid #0066cc; margin-top: 15px; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>${LabName}</h1>
+                  <p><strong>Student Name:</strong> ${YourFullName}</p>
+                  <div class="meta">
+                      <p><strong>Server Location:</strong> ${AWS::Region} (Zone: $AZ)</p>
+                      <p><strong>Status:</strong> Apache Web Server Operational</p>
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
+      Tags:
+        - Key: Name
+          Value: 'Public-Web-Server-AZ2'
+
+  # =========================================================================
+  # 4. PRIVATE EC2 INSTANCES (APPLICATION TIER)
+  # =========================================================================
+  PrivateInstanceA:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAmiId
+      SubnetId:
+        Fn::ImportValue: !Sub '${NetworkStackName}-PrivateSubnetA'
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      SecurityGroupIds:
+        - !Ref PrivateAppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: 'Private-App-Server-AZ1'
+
+  PrivateInstanceB:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAmiId
+      SubnetId:
+        Fn::ImportValue: !Sub '${NetworkStackName}-PrivateSubnetB'
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      SecurityGroupIds:
+        - !Ref PrivateAppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: 'Private-App-Server-AZ2'
+
+# ==================================================
+# 5. OUTPUTS FOR TESTING
+# ==================================================
+Outputs:
+  PublicInstanceAUrl:
+    Description: 'Public Web Server A URL'
+    Value: !Sub 'http://${PublicInstanceA.PublicDnsName}'
+
+  PublicInstanceBUrl:
+    Description: 'Public Web Server B URL'
+    Value: !Sub 'http://${PublicInstanceB.PublicDnsName}'
+
+  PublicInstanceAPrivateIp:
+    Description: 'Private IP of Public Web Server A'
+    Value: !GetAtt PublicInstanceA.PrivateIp
+
+  PrivateInstanceAPrivateIp:
+    Description: 'Private IP of Private App Server A'
+    Value: !GetAtt PrivateInstanceA.PrivateIp
+
+  PrivateInstanceBPrivateIp:
+    Description: 'Private IP of Private App Server B'
+    Value: !GetAtt PrivateInstanceB.PrivateIp
