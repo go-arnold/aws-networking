@@ -152,6 +152,7 @@ Resources:
                   - ec2:DescribeVpcAttribute
                   - ec2:DescribeVpcs
                   - ec2:ModifySubnetAttribute
+                  - ec2:CreateNatGateway
                 Resource: "*"
 
               - Sid: CloudFormationStackReadForNestedOperations
