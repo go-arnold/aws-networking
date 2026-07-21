@@ -1,0 +1,164 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  One-time bootstrap: creates the two IAM roles required before a
+  CloudFormation Git sync configuration can be created.
+
+Resources:
+  GitSyncConnectionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: iam-lab-gitsync-connection-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.sync.codeconnections.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GitSyncConnectionPermissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: SyncToCloudFormation
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:GetTemplate
+                  - cloudformation:ListChangeSets
+                  - cloudformation:ListStacks
+                  - cloudformation:ValidateTemplate
+                Resource: "*"
+              - Sid: PolicyForManagedRules
+                Effect: Allow
+                Action:
+                  - events:PutRule
+                  - events:PutTargets
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    events:ManagedBy: cloudformation.sync.codeconnections.amazonaws.com
+              - Sid: PolicyForDescribingRule
+                Effect: Allow
+                Action: events:DescribeRule
+                Resource: "*"
+
+  GitSyncStackExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: iam-lab-gitsync-stack-execution-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: IamLabResourceCreationPermissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ManageSharedSecret
+                Effect: Allow
+                Action:
+                  - secretsmanager:CreateSecret
+                  - secretsmanager:DeleteSecret
+                  - secretsmanager:DescribeSecret
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:TagResource
+                  - secretsmanager:UntagResource
+                  - secretsmanager:PutSecretValue
+                Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*"
+              - Sid: GenerateRandomPassword
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetRandomPassword
+                Resource: "*"
+              - Sid: ManageIamGroupsAndPolicies
+                Effect: Allow
+                Action:
+                  - iam:CreateGroup
+                  - iam:DeleteGroup
+                  - iam:GetGroup
+                  - iam:UpdateGroup
+                  - iam:CreatePolicy
+                  - iam:DeletePolicy
+                  - iam:GetPolicy
+                  - iam:GetPolicyVersion
+                  - iam:ListPolicyVersions
+                  - iam:CreatePolicyVersion
+                  - iam:DeletePolicyVersion
+                  - iam:AttachGroupPolicy
+                  - iam:DetachGroupPolicy
+                  - iam:AttachUserPolicy
+                  - iam:DetachUserPolicy
+                  - iam:TagPolicy
+                Resource: "*"
+              - Sid: ManageIamUsers
+                Effect: Allow
+                Action:
+                  - iam:CreateUser
+                  - iam:DeleteUser
+                  - iam:GetUser
+                  - iam:UpdateUser
+                  - iam:TagUser
+                  - iam:UntagUser
+                  - iam:AddUserToGroup
+                  - iam:RemoveUserFromGroup
+                  - iam:CreateLoginProfile
+                  - iam:UpdateLoginProfile
+                  - iam:DeleteLoginProfile
+                  - iam:GetLoginProfile
+                  - iam:PutUserPermissionsBoundary
+                  - iam:DeleteUserPermissionsBoundary
+                Resource: "*"
+
+              - Sid: ManageEc2Resources
+                Effect: Allow
+                Action:
+                  - ec2:AllocateAddress
+                  - ec2:ReleaseAddress
+                  - ec2:DescribeAddresses
+                  - ec2:AssociateAddress
+                  - ec2:DisassociateAddress
+                  - ec2:CreateInternetGateway
+                  - ec2:DeleteInternetGateway
+                  - ec2:AttachInternetGateway
+                  - ec2:DetachInternetGateway
+                  - ec2:DescribeInternetGateways
+                  - ec2:CreateVpc
+                  - ec2:DeleteVpc
+                  - ec2:DescribeVpcs
+                  - ec2:CreateSubnet
+                  - ec2:DeleteSubnet
+                  - ec2:DescribeSubnets
+                  - ec2:CreateRouteTable
+                  - ec2:DeleteRouteTable
+                  - ec2:CreateRoute
+                  - ec2:DeleteRoute
+                  - ec2:DescribeRouteTables
+                  - ec2:AssociateRouteTable
+                  - ec2:DisassociateRouteTable
+                  - ec2:CreateTags
+                  - ec2:DeleteTags
+                Resource: "*"
+
+              - Sid: CloudFormationStackReadForNestedOperations
+                Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:GetTemplate
+                Resource: "*"
+
+Outputs:
+  GitSyncConnectionRoleArn:
+    Value: !GetAtt GitSyncConnectionRole.Arn
+  GitSyncStackExecutionRoleArn:
+    Value: !GetAtt GitSyncStackExecutionRole.Arn
