@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   One-time bootstrap: creates the two IAM roles required before a
-  CloudFormation Git sync configuration can be created.
+  CloudFormation Git sync configuration
 
 Resources:
   GitSyncConnectionRole:
