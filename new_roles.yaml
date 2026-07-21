@@ -116,6 +116,9 @@ Resources:
                   - iam:CreateRole
                   - iam:UpdateRole
                   - iam:DeleteRole
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:ListRoleTags
                   - iam:UpdateUser
                   - iam:TagUser
                   - iam:UntagUser
