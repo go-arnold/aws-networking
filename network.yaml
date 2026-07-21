@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Phase 2: Highly Available Multi-AZ VPC Architecture with Dual NAT Gateways'
+Description: 'Highly Available Multi-AZ VPC Architecture with Dual NAT Gateways'
 
 Parameters:
   VpcCidrBlock:
