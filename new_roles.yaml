@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   One-time bootstrap: creates the two IAM roles required before a
-  CloudFormation Git sync configuration
+  CloudFormation Git sync configuration for everything to work
 
 Resources:
   GitSyncConnectionRole:
@@ -138,6 +138,7 @@ Resources:
                   - ec2:CreateSubnet
                   - ec2:DeleteSubnet
                   - ec2:DescribeSubnets
+                  - ec2:DescribeAvailabilityZones
                   - ec2:CreateRouteTable
                   - ec2:DeleteRouteTable
                   - ec2:CreateRoute
