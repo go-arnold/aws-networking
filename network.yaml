@@ -1,0 +1,249 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Phase 2: Highly Available Multi-AZ VPC Architecture with Dual NAT Gateways'
+
+Parameters:
+  VpcCidrBlock:
+    Type: String
+    Default: '10.0.0.0/16'
+    Description: 'CIDR block for the entire VPC'
+
+  PublicSubnetACidr:
+    Type: String
+    Default: '10.0.1.0/24'
+    Description: 'CIDR block for Public Subnet A (AZ 1)'
+
+  PublicSubnetBCidr:
+    Type: String
+    Default: '10.0.2.0/24'
+    Description: 'CIDR block for Public Subnet B (AZ 2)'
+
+  PrivateSubnetACidr:
+    Type: String
+    Default: '10.0.10.0/24'
+    Description: 'CIDR block for Private Subnet A (AZ 1)'
+
+  PrivateSubnetBCidr:
+    Type: String
+    Default: '10.0.20.0/24'
+    Description: 'CIDR block for Private Subnet B (AZ 2)'
+
+Resources:
+  # =========================================================================
+  # 1. VPC & INTERNET GATEWAY
+  # =========================================================================
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Ref VpcCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: 'Lab-VPC'
+
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: 'Lab-IGW'
+
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # =========================================================================
+  # 2. SUBNETS (SPANNING 2 AVAILABILITY ZONES)
+  # =========================================================================
+  PublicSubnetA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetACidr
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: 'Public-Subnet-A'
+
+  PublicSubnetB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetBCidr
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: 'Public-Subnet-B'
+
+  PrivateSubnetA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetACidr
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: 'Private-Subnet-A'
+
+  PrivateSubnetB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetBCidr
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: 'Private-Subnet-B'
+
+  # =========================================================================
+  # 3. ELASTIC IPs & NAT GATEWAYS (1 PER AZ FOR ZERO CROSS-AZ DEPENDENCY)
+  # =========================================================================
+  EIPAZA:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: 'EIP-NAT-A'
+
+  NatGatewayA:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt EIPAZA.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: 'NAT-GW-A'
+
+  EIPAZB:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: 'EIP-NAT-B'
+
+  NatGatewayB:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt EIPAZB.AllocationId
+      SubnetId: !Ref PublicSubnetB
+      Tags:
+        - Key: Name
+          Value: 'NAT-GW-B'
+
+  # =========================================================================
+  # 4. ROUTE TABLES AND ROUTES
+  # =========================================================================
+  # Public Route Table (Shared by both public subnets -> points to IGW)
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: 'Public-RouteTable'
+
+  PublicDefaultRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  # Private Route Table A (Points specifically to NAT Gateway A)
+  PrivateRouteTableA:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: 'Private-RouteTable-A'
+
+  PrivateDefaultRouteA:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGatewayA
+
+  PrivateSubnetARouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTableA
+
+  # Private Route Table B (Points specifically to NAT Gateway B)
+  PrivateRouteTableB:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: 'Private-RouteTable-B'
+
+  PrivateDefaultRouteB:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGatewayB
+
+  PrivateSubnetBRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTableB
+
+# =========================================================================
+# 5. EXPORTED OUTPUTS FOR CROSS-STACK REFERENCE
+# =========================================================================
+Outputs:
+  VpcId:
+    Description: 'VPC ID'
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VpcId'
+
+  PublicSubnetAId:
+    Description: 'Public Subnet A ID'
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicSubnetA'
+
+  PublicSubnetBId:
+    Description: 'Public Subnet B ID'
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicSubnetB'
+
+  PrivateSubnetAId:
+    Description: 'Private Subnet A ID'
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Sub '${AWS::StackName}-PrivateSubnetA'
+
+  PrivateSubnetBId:
+    Description: 'Private Subnet B ID'
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: !Sub '${AWS::StackName}-PrivateSubnetB'
