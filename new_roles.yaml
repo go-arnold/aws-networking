@@ -118,9 +118,17 @@ Resources:
                   - iam:DeleteRole
                   - iam:AttachRolePolicy
                   - iam:DetachRolePolicy
+                  - iam:PassRole
                   - iam:TagRole
                   - iam:UntagRole
                   - iam:ListRoleTags
+                  - iam:CreateInstanceProfile
+                  - iam:DeleteInstanceProfile
+                  - iam:GetInstanceProfile
+                  - iam:TagInstanceProfile
+                  - iam:UntagInstanceProfile
+                  - iam:AddRoleToInstanceProfile
+                  - iam:RemoveRoleFromInstanceProfile
                   - iam:UpdateUser
                   - iam:TagUser
                   - iam:UntagUser
