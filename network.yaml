@@ -170,7 +170,7 @@ Resources:
       SubnetId: !Ref PublicSubnetB
       RouteTableId: !Ref PublicRouteTable
 
-  # Private Route Table A (Points specifically to NAT Gateway A)
+  # Private Route Table A to point specifically to NAT Gateway A
   PrivateRouteTableA:
     Type: 'AWS::EC2::RouteTable'
     Properties:
@@ -192,7 +192,7 @@ Resources:
       SubnetId: !Ref PrivateSubnetA
       RouteTableId: !Ref PrivateRouteTableA
 
-  # Private Route Table B (Points specifically to NAT Gateway B)
+  # Private Route Table B to point specifically to NAT Gateway B
   PrivateRouteTableB:
     Type: 'AWS::EC2::RouteTable'
     Properties:
