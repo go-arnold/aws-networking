@@ -4,7 +4,7 @@ Description: 'Highly Available EC2 Instances with SSM Management and Web Server 
 Parameters:
   NetworkStackName:
     Type: String
-    Default: 'network-stack'
+    Default: 'arnold-network'
     Description: 'Name of the parent networking stack exporting VPC/Subnet IDs'
 
   YourFullName:
