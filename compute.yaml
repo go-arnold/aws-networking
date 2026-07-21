@@ -25,7 +25,7 @@ Parameters:
   InstanceType:
     Type: String
     Default: 't3.micro'
-    Description: 'EC2 instance type'
+    Description: 'EC2 instance type to use'
 
 Resources:
   # =========================================================================
