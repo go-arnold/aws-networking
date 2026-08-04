@@ -1,3 +1,8 @@
 template-file-path: network.yaml
-parameters: {}
+parameters:
+  VpcCidrBlock: 10.0.0.0/16
+  PublicSubnetACidr: 10.0.1.0/24
+  PublicSubnetBCidr: 10.0.2.0/24
+  PrivateSubnetACidr: 10.0.10.0/24
+  PrivateSubnetBCidr: 10.0.20.0/24
 tags: {}
