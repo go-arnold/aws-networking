@@ -1,6 +1,7 @@
 template-file-path: compute.yaml
 parameters:
-  NetworkStackName: network-stack
-  YourFullName: Arnold Cikuru Mataba
   LabName: Securely Deploying Resources in a VPC Using CloudFormation
-tags: {}
+  YourFullName: ' Arnold Cikuru Mataba '
+  NetworkStackName: arnold-network
+tags:
+  Name: arnold-networking-one
